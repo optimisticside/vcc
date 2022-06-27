@@ -79,13 +79,36 @@ static void create(struct lexer *lexer, int token) {
 }
 
 /*
+ * Scans an integer literal.
+ */
+static int scanint(struct lexer *lexer) {
+	int radix, value, digit;
+
+	radix = 10;
+	if (accept(lexer, "0x") or accept(lexer, "0X"))
+		radix = 16;
+	else if (accept(lexer, "0"))
+		radix = 8;
+
+	while ((digit = charpos("0123456789abcdef", tolower(ch))) >= 0) {
+		if (digit >= radix)
+			fatalf("Invalid digit %c in integer literal", ch);
+		value = value * radix + digit;
+		ch = next(lexer);
+	}
+
+	putback(lexer);
+	return value;
+}
+
+/*
  * Scans the next token.
  */
 static int next(struct lexer *lexer) {
 	struct tokenbind *tb;
 
 	/*
-	 * Though this might be very innificient, I prefer this over a messy
+	 * Though this might be very inefficient, I prefer this over a messy
 	 * and extremely long switch statement with nested conditionals for
 	 * tokens that span multiple characters.
 	 *
