@@ -90,6 +90,7 @@ static struct tree *dostmt(struct parser *parser) {
 	expect(parser, T_LPAREN);
 	cond = expr(parser);
 	expect(parser, T_RPAREN);
+	expect(parser, T_SEMI);
 
 	return mkastbinary(AST_DOSTMT, cond, body);
 }
