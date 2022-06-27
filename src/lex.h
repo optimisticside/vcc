@@ -2,6 +2,11 @@
 #define _LEX_H_
 
 /*
+ * How much the string-buffer increases by each time its capacity is met.
+ */
+#define BUFFER_DELTA	10
+
+/*
  * One allocated per lexer.
  */
 struct lexer {

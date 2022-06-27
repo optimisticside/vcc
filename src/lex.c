@@ -1,5 +1,5 @@
-#include <token.h>
-#include <lex.h>
+#include "token.h"
+#include "lex.h"
 
 /*
  * Map of keyword strings and their corresponding tokens. Gets converted into
@@ -71,12 +71,11 @@ static void skip(struct lexer *lexer) {
  * Create a new token and adds it to the token-stream.
  * TODO: This routine's paramters are far from ideal and must be changed.
  */
-static void create(struct lexer *lexer, int token, char *string, int intval) {
+static void create(struct lexer *lexer, int token, long value) {
 	struct token *tok;
 
 	tok = malloc(sizeof(struct token));
-	tok->string = string;
-	tok->intval = intval;
+	tok->value = value;
 	tok->token = token;
 	
 	if (lexer->curr != NULL)
@@ -116,21 +115,64 @@ static void scanint(struct lexer *lexer) {
  */
 static void scaniden(struct lexer *lexer) {
 	char *buffer;
-	int i, c;
+	int size, ch;
 
-	i = 0;
+	size = 0;
 	ch = next(lexer);
 	buffer = calloc(MAXIDEN, sizeof(char));
 	while (isalpha(ch) || isdigit(ch) || ch == '_') {
 		if (i + 1 >= MAXIDEN)
 			fatalf("Identifier too long");
-		else if (i < MAXIDEN - 1)
-			buffer[i++] = (char)ch;
+		else if (size <= MAXIDEN)
+			buffer[size++] = (char)ch;
 		ch = next(lexer);
 	}
 	putback(lexer);
-	buffer[i] = '\0';
-	create(lexer, T_IDEN, buffer);
+	buffer[size] = '\0';
+	return create(lexer, T_IDEN, buffer);
+}
+
+/*
+ * Scan a character literal.
+ */
+static void scanchar(struct lexer *lexer) {
+	long value;
+	int length, ch;
+
+	value = 0;
+	while ((ch = next(lexer)) != '\'') {
+		if (length++ > sizeof(long))
+			fatalf("Character-literal too long");
+		value = (value << 8) | (ch & 0xFF);
+	}
+	return create(lexer, T_CHARLIT, value);
+}
+
+/*
+ * Scan a string literal.
+ */
+static void scanstr(struct lexer *lexer) {
+	char *buffer;
+	int size, capacity, ch;
+
+	size = 1;
+	capacity = 1;
+	buffer = calloc(1, sizeof(char));
+	while ((ch = next(lexer)) != '"') {
+		/*
+		 * We do not do not follow the traditional doubleing method
+		 * for dynamic arrays because it can be quite inefficient
+		 * for our use case. We instead increase the buffer by a
+		 * constant amount.
+		 */
+		if (size + 1 >= capacity) {
+			capacity += BUFFER_DELTA;
+			buffer = realloc(buffer, capacity);
+		}
+		buffer[size++] = ch;
+	}
+	buffer[size] = '\0';
+	return create(lexer, T_STRLIT, buffer);
 }
 
 /*
@@ -145,6 +187,11 @@ static void scan(struct lexer *lexer) {
 		return scaniden(lexer);
 	if (isdigit(ch))
 		return scanint(lexer);
+
+	if (ch == '"')
+		return scanstr(lexer);
+	if (ch == '\'')
+		return scanchar(lexer);
 
 	/*
 	 * Though this might be very inefficient, I prefer this over a messy
