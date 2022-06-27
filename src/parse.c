@@ -30,8 +30,11 @@ static struct token *expect(struct parser *parser, int kind) {
 }
 
 /*
- * Parse an if statement with a possible else case. Depend on the `if` token
- * to already be consumed.
+ * Parse an if statement with a possible else case.
+ *
+ * If statement:
+ * if ( expression ) statement
+ * if ( expression ) statement else statement
  */
 static struct tree *ifstmt(struct parser *parser) {
 	struct tree *cond;
@@ -49,7 +52,10 @@ static struct tree *ifstmt(struct parser *parser) {
 }
 
 /*
- * Parse while loop. Depend on the `while` token to already be consumed.
+ * Parse a while statement.
+ *
+ * While statement:
+ * while ( expression ) statement
  */
 static struct tree *whilestmt(struct parser *parser) {
 	struct tree *cond, *body;
@@ -61,19 +67,11 @@ static struct tree *whilestmt(struct parser *parser) {
 	return mkastbinary(AST_WHILE, cond, body);
 }
 
-/*
- * Parse switch statement. Depend on the `switch` token to already be consumed.
- */
-static struct tree *switchstmt(struct parser *parser) {
-	struct tree *value, *body;
-
-	expect(parser, T_LPAREN);
-	value = expr(parser);
-	expect(parser, T_RPAREN);
-	body = stmt(parser);
-	return mkastbinary(AST_SWITCH, value, body);
-}
-
 static struct tree *stmt(struct parser *parser) {
-
+	switch (parser->token->kind) {
+	case T_IF:
+		return ifstmt();
+	case T_WHILE:
+		return whilestmt();
+	}
 }
