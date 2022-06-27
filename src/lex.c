@@ -15,7 +15,7 @@ static struct tokenbind {
 };
 
 /*
- * Accepts a string of characters. If the next characters match the given
+ * Accept a string of characters. If the next characters match the given
  * string, then consume those characters and return true. Otherwise return
  * false.
  */
@@ -29,6 +29,13 @@ static bool accept(struct lexer *lexer, char *string) {
 		return true;
 	}
 	return false;
+}
+
+/*
+ * Consume and return a character.
+ */
+static int next(struct lexer *lexer) {
+	return lexer->source[lexer->position++];
 }
 
 /*
@@ -53,7 +60,7 @@ static void charpos(char *string, int ch) {
 }
 
 /*
- * Skips any whitespace.
+ * Skip any whitespace.
  */
 static void skip(struct lexer *lexer) {
 	while (charpos(lexer->source[lexer->position], " \t\n\r\f"))
@@ -61,12 +68,15 @@ static void skip(struct lexer *lexer) {
 }
 
 /*
- * Creates a new token and adds it to the token-stream.
+ * Create a new token and adds it to the token-stream.
+ * TODO: This routine's paramters are far from ideal and must be changed.
  */
-static void create(struct lexer *lexer, int token) {
+static void create(struct lexer *lexer, int token, char *string, int intval) {
 	struct token *tok;
 
 	tok = malloc(sizeof(struct token));
+	tok->string = string;
+	tok->intval = intval;
 	tok->token = token;
 	
 	if (lexer->curr != NULL)
@@ -79,13 +89,13 @@ static void create(struct lexer *lexer, int token) {
 }
 
 /*
- * Scans an integer literal.
+ * Scan an integer literal.
  */
-static int scanint(struct lexer *lexer) {
+static void scanint(struct lexer *lexer) {
 	int radix, value, digit;
 
 	radix = 10;
-	if (accept(lexer, "0x") or accept(lexer, "0X"))
+	if (accept(lexer, "0x") || accept(lexer, "0X"))
 		radix = 16;
 	else if (accept(lexer, "0"))
 		radix = 8;
@@ -98,14 +108,43 @@ static int scanint(struct lexer *lexer) {
 	}
 
 	putback(lexer);
-	return value;
+	create(lexer, T_INTLIT, value);
 }
 
 /*
- * Scans the next token.
+ * Scan an identifier.
  */
-static int next(struct lexer *lexer) {
+static void scaniden(struct lexer *lexer) {
+	char *buffer;
+	int i, c;
+
+	i = 0;
+	ch = next(lexer);
+	buffer = calloc(MAXIDEN, sizeof(char));
+	while (isalpha(ch) || isdigit(ch) || ch == '_') {
+		if (i + 1 >= MAXIDEN)
+			fatalf("Identifier too long");
+		else if (i < MAXIDEN - 1)
+			buffer[i++] = (char)ch;
+		ch = next(lexer);
+	}
+	putback(lexer);
+	buffer[i] = '\0';
+	create(lexer, T_IDEN, buffer);
+}
+
+/*
+ * Scan the next token.
+ */
+static void scan(struct lexer *lexer) {
 	struct tokenbind *tb;
+	int ch;
+
+	ch = lexer->source[lexer->position];
+	if (isalpha(ch))
+		return scaniden(lexer);
+	if (isdigit(ch))
+		return scanint(lexer);
 
 	/*
 	 * Though this might be very inefficient, I prefer this over a messy
@@ -125,6 +164,8 @@ static int next(struct lexer *lexer) {
 		if (accept(lexer, tb->string))
 			return create(lexer, tb->token);
 	}
+
+	fatalf("Invalid character %c", ch);
 }
 
 /*
@@ -132,5 +173,7 @@ static int next(struct lexer *lexer) {
  * into the given lexer object.
  */
 void lex(struct lexer *lexer) {
-
+	do {
+		scan(lexer);
+	} while (lexer->curr && lexer->curr->token != T_EOF);
 }
