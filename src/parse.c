@@ -37,9 +37,9 @@ static struct token *expect(struct parser *parser, int kind) {
 /*
  * Parse an if statement with a possible else case.
  *
- * If statement:
- * if ( expression ) statement
- * if ( expression ) statement else statement
+ * if-statement:
+ *   if ( expression ) statement
+ *   if ( expression ) statement else statement
  */
 static struct tree *ifstmt(struct parser *parser) {
 	struct tree *cond;
@@ -59,8 +59,8 @@ static struct tree *ifstmt(struct parser *parser) {
 /*
  * Parse a while statement.
  *
- * While statement:
- * while ( expression ) statement
+ * while-statement:
+ *   while ( expression ) statement
  */
 static struct tree *whilestmt(struct parser *parser) {
 	struct tree *cond, *body;
@@ -77,8 +77,8 @@ static struct tree *whilestmt(struct parser *parser) {
 /*
  * Parse a do statement.
  *
- * Do statement:
- * do statement while ( expression ) ;
+ * do-statement:
+ *   do statement while ( expression ) ;
  */
 static struct tree *dostmt(struct parser *parser) {
 	struct tree *body, *cond;
@@ -96,13 +96,109 @@ static struct tree *dostmt(struct parser *parser) {
 }
 
 /*
- * Parse a statement.
+ * Parse an iteration satement.
+ *
+ * iteration-statement:
+ *   while ( expression ) statement
+ *   do statement while ( expression ) ;
+ *   for ( expression-statement expression-statement ) statement
+ *   for ( expression-statement expression-statement expression-statement ) statement
+ *   for ( declaration expression-statement ) statement
+ *   for ( declaration expression-statement expression-statement ) statement
  */
-static struct tree *stmt(struct parser *parser) {
+static struct tree *iterstmt(struct parser *parser) {
 	switch (parser->token->kind) {
-	case T_IF:
-		return ifstmt();
 	case T_WHILE:
-		return whilestmt();
+		return whilestmt(parser);
+	case T_DO:
+		return dostmt(parser);
+	case T_FOR:
+		return forstmt(parser);
 	}
+}
+
+/*
+ * Parse a jump statement.
+ *
+ * jump-statement:
+ *   goto identifier ;
+ *   continue ;
+ *   break ;
+ *   return ;
+ *   return expression ;
+ */
+static struct tree *jumpstmt(struct parser *parser) {
+	switch (parser->token->kind) {
+	case T_GOTO:
+		return gotostmt(parser);
+	case T_CONTINUE:
+		return contstmt(parser);
+	case T_BREAK:
+		return breakstmt(parser);
+	case T_RETURN:
+		return returnstmt(parser);
+	}
+}
+
+/*
+ * Parse a direct-declarator.
+ *
+ * direct-declarator:
+ *   identifier
+ *   ( declarator )
+ *   direct-declarator [ ]
+ *   direct-declarator [ number ]
+ *   direct-declarator [ static type-qualifier-list assignment-expression ]
+ *   direct-declarator [ static assignment-expression ]
+ *   direct-declarator [ type-qualifier-list number ]
+ *   direct-declarator [ type-qualifier-list static assignment-expression ]
+ *   direct-declarator [ type-qualifier-list ]
+ *   direct-declarator [ assignment-expression ]
+ *   direct-declarator ( parameter-type-list )
+ *   direct-declarator ( )
+ *   direct-declarator ( identifier-list )
+ */
+static struct tree *directdeclarator(struct parser *parser) {
+	if (peek(parser, T_NAME)) {
+		
+	}
+
+	if (accept(parser, T_LPAREN)) {
+		struct declarator *inner = declarator(parser);
+		expect(parser, T_RPAREN);
+	}
+}
+
+/*
+ * Parse a declarator.
+ *
+ * declarator:
+ *   pointer direct-declarator
+ *   direct-declarator
+ *
+ */
+static struct declarator *declarator(struct parser *parser) {
+	if (accept(parser, T_STAR)) {
+		struct declarator *inner;
+		if ((inner = declarator(parser)) != NULL)
+			return mkptrdeclarator(inner);
+	}
+	return directdeclarator(parser);
+}
+
+/*
+ * Parse a declaration.
+ *
+ * declaration:
+ *   declaration-specifiers ;
+ *   declaration-specifiers init-declarator-list ;
+ *   static_assert-declaration
+ *   ;
+ *
+ * declaration-list:
+ *   declaration
+ *   declaration-list declaration
+ */
+static struct tree *declaration(struct parser *parser) {
+
 }
