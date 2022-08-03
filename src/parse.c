@@ -24,7 +24,7 @@ static struct token *expect(struct parser *parser, int kind) {
 	struct token *token;
 
 	token = parser->token;
-	if ((token == NULL || token->kind != kind)
+	if (token == NULL || token->kind != kind)
 		/*
 		 * TODO: Can we realy rely on the fact that the last token will
 		 * be an EOF token when access the current token's kind (it can
@@ -94,7 +94,19 @@ static struct declarator *declarator(struct parser *parser) {
  *   declaration-list declaration
  */
 static struct tree *declaration(struct parser *parser) {
+	struct tree *toassert, *errmsg;
 
+	if (accept(parser, T_STATICASSERT)) {
+		expect(parser, T_LPAREN);
+		toassert = constexpr(parser);
+
+		expect(parser, T_COMMA);
+		errmsg = expect(parser, T_STRING);
+
+		expect(parser, T_RPAREN);
+		expect(parser, T_SEMI);
+		return mkastbinary(AST_STATICASSERT, toassert, errmsg);
+	}
 }
 
 /*
@@ -178,56 +190,35 @@ static struct tree *switchstmt(sturct parser *parser) {
 }
 
 /*
- * Parse an iteration satement.
- *
- * iteration-statement:
- *   while ( expression ) statement
- *   do statement while ( expression ) ;
- *   for ( expression-statement expression-statement ) statement
- *   for ( expression-statement expression-statement expression-statement ) statement
- *   for ( declaration expression-statement ) statement
- *   for ( declaration expression-statement expression-statement ) statement
+ * Parse a satement without labels. Called by the main statement parser after
+ * consuming any labels.
  */
-static struct tree *iterstmt(struct parser *parser) {
+static struct tree *stmtnolables(struct parser *parser) {
 	switch (parser->token->kind) {
+	case T_LBRACE:
+		return compoundstmt(parser);
+
+	/*
+	 * Iteration statements.
+	 */
 	case T_WHILE:
 		return whilestmt(parser);
 	case T_DO:
 		return dostmt(parser);
 	case T_FOR:
 		return forstmt(parser);
-	}
-}
 
-/*
- * Parse a selection statement.
- *
- * selection-statement:
- *   if ( expression ) statement
- *   if ( expression ) statement else statement
- *   switch ( expression ) statement
- */
-static struct tree *selstmt(struct parser *parser) {
-	switch (parser->token->kind) {
+	/*
+	 * Selection statement.
+	 */
 	case T_IF:
 		return ifstmt(parser);
 	case T_SWITCH:
-		return switchstmt(parser);
-	}
-}
-
-/*
- * Parse a jump statement.
- *
- * jump-statement:
- *   goto identifier ;
- *   continue ;
- *   break ;
- *   return ;
- *   return expression ;
- */
-static struct tree *jumpstmt(struct parser *parser) {
-	switch (parser->token->kind) {
+		return stwitchstmt(parser);
+	
+	/*
+	 * Jump statement.
+	 */
 	case T_GOTO:
 		return gotostmt(parser);
 	case T_CONTINUE:
@@ -239,3 +230,68 @@ static struct tree *jumpstmt(struct parser *parser) {
 	}
 }
 
+/*
+ * Parse a labeled statement.
+ *
+ * labeled-statement:
+ *   identifier : statement
+ *   case constant-expression : statement
+ *   default : statement
+ *   ;
+ */
+static struct tree *labeledstmt(struct parser *parser) {
+	struct tree *label, *caseval, body;
+
+	if (accept(parser, T_CASE)) {
+		caseval = constexpr(parser);
+		expect(parser, T_COLON);
+		return mkastbinary(AST_CASE, caseval, stmt(parser));
+	}
+
+	if (accept(parser, T_DEFAULT)) {
+		expect(parser, T_COLON);
+		return mkastunary(AST_DEFAULTCASE, stmt(parser));
+	}
+
+	if ((label = accept(parser, T_NAME)) != NULL) {
+		expect(parser, T_COLON);
+		return mkastbinary(AST_LABEL, label, stmt(parser));
+	}
+}
+
+/*
+ * Parse a statement.
+ *
+ * statement:
+ *   labeled-statement
+ *   compound-statement
+ *   expression-statement
+ *   selection-statement
+ *   iteration-statement
+ *   jump-statement
+ *   ;
+ *
+ * iteration-statement:
+ *   while ( expression ) statement
+ *   do statement while ( expression ) ;
+ *   for ( expression-statement expression-statement ) statement
+ *   for ( expression-statement expression-statement expression-statement ) statement
+ *   for ( declaration expression-statement ) statement
+ *   for ( declaration expression-statement expression-statement ) statement
+ *
+ * selection-statement:
+ *   if ( expression ) statement
+ *   if ( expression ) statement else statement
+ *   switch ( expression ) statement
+ * 
+ * jump-statement:
+ *   goto identifier ;
+ *   continue ;
+ *   break ;
+ *   return ;
+ *   return expression ;
+ *
+ */
+static struct tree *stmt(struct parser *parser) {
+	labels(parser);
+}
