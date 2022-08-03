@@ -35,6 +35,45 @@ static struct token *expect(struct parser *parser, int kind) {
 }
 
 /*
+ * Parse an assignment expression.
+ *
+ * assignment-expression:
+ *   conditional-expression
+ *   unary-expression assignment-operator assignment-expression
+ */
+static struct token *assmtexpr(struct parser *parser) {
+	static int assignopers[] = {
+		T_MULASSIGN, T_DIVASSIGN, T_MODASSIGN, T_ADDASIGN, T_SUBASSIGN,
+		T_LSHIFTASSIGN, T_RSHIFTASSIGN, T_ANDASSIGN, T_ORASSIGN,
+		T_XORASSIGN,
+	};
+
+
+}
+
+/*
+ * Parse an expression.
+ *
+ * expression:
+ *   assignment-expression
+ *   expression, assignment-expression
+ *   ;
+ */
+static struct token *expr(struct parser *parser) {
+	struct tree *left;
+
+	left = assignmentexpr(parser);
+	while (accept(parser, T_COMMA)) {
+		left = mkastbinary(
+			AST_COMPOUNDEXPR,
+			left,
+			assignmentexpr(parser)
+		);
+	}
+	return left;
+}
+
+/*
  * Parse a direct-declarator.
  *
  * direct-declarator:
@@ -290,7 +329,6 @@ static struct tree *labeledstmt(struct parser *parser) {
  *   break ;
  *   return ;
  *   return expression ;
- *
  */
 static struct tree *stmt(struct parser *parser) {
 	labels(parser);
