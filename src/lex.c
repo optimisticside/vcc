@@ -10,8 +10,31 @@ static struct tokenbind {
 	char *string;	/* keyword string */
 	int strlen;	/* cached to speed-up sorting */
 } tokenmap[] = {
+	/* keywords */
 	{ T_AUTO, "auto" },
 	{ T_ASM, "asm" },
+	{ T_BREAK, "break" },
+	{ T_CASE, "case" },
+	{ T_CONST, "const" },
+	{ T_CONTINUE, "continue" },
+	{ T_DEFAULT, "default" },
+	{ T_DO, "do" },
+	{ T_ELSE, "else" },
+	{ T_ENUM, "enum" },
+	{ T_EXTERN, "extern" },
+	{ T_FOR, "for" },
+	{ T_GOTO, "goto" },
+	{ T_IF, "if" },
+	{ T_REGISTER, "register" },
+	{ T_RETURN, "return" },
+	{ T_SIZEOF, "sizeof" },
+	{ T_STATIC, "static" },
+	{ T_STRUCT, "struct" },
+	{ T_SWITCH, "switch" },
+	{ T_TYPEDEF, "typedef" },
+	{ T_UNION, "union" },
+	{ T_VOLATILE, "volatile" },
+	{ T_WHILE, "while" },
 };
 
 /*
