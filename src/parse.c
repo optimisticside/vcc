@@ -4,6 +4,40 @@
 #include "lex.h"
 
 /*
+ * Store tokens in sub-arrays based on their precedences, and a NULL at the end
+ * of each sub array in the levels of tokens to indicate the end, rather than
+ * storing a separate array of the subarray's lengths.
+ */	
+int *toklvls[] = {
+	{ T_LOR, NULL },
+	{ T_LAND, NULL },
+	{ T_OR, NULL },
+	{ T_XOR, NULL },
+	{ T_AND, NULL },
+	{ T_EQ, T_NE, NULL },
+	{ T_LT, T_GT, T_LE, T_GE, NULL },
+	{ T_LSHIFT, T_RSHIFT, NULL },
+	{ T_PLUS, T_MINUS, NULL },
+	{ T_STAR, T_SLASH, T_MOD, NULL },
+};
+
+/*
+ * Tokens and their corresponding nodes in the abstract-syntax-tree. Stored in
+ * an array since token-kinds are already integers.
+ */
+int tokmap[] = {
+	[T_AND] = AST_AND,
+}
+
+/*
+ * Tokens for assignments.
+ */
+int assigntoks[] = {
+	T_MULASSIGN, T_DIVASSIGN, T_MODASSIGN, T_ADDASIGN, T_SUBASSIGN,
+	T_LSHIFTASSIGN, T_RSHIFTASSIGN, T_ANDASSIGN, T_ORASSIGN, T_XORASSIGN,
+}
+
+/*
  * Consume and return a token if matches current type. Otherwise, return null.
  */
 static struct token *accept(struct parser *parser, int kind) {
@@ -35,20 +69,132 @@ static struct token *expect(struct parser *parser, int kind) {
 }
 
 /*
+ * Internal routine to parse binary operators in expressions. Calls itself 
+ * with a depth counter to measure precedence level.
+ *
+ * logical-or-expression:
+ *   logical-and-expression
+ *   logical-or-expression || logical-and-expression
+ *   ;
+ *
+ * logical-and-expression:
+ *   inclusive-and-expression
+ *   logical-and-expression && inclusive-or-expression
+ *   ;
+ *
+ * inclusive-or-expression:
+ *   exclusive-or-expression
+ *   inclusive-or-expression | exclusive-or-expression
+ *   ;
+ *
+ * exclusive-or-expression:
+ *   and-expression
+ *   exclusive-or-expression ^ and-expression
+ *   ;
+ *
+ * and-expression:
+ *   equality-expression
+ *   and-expression & equality-expression
+ *   ;
+ *
+ * equality-expression:
+ *   relational-expression
+ *   equality-expression == relational-expression
+ *   equality-expression != relational-expression
+ *
+ * relational-expression:
+ *   shift-expression
+ *   relational-expression < shift-expression
+ *   relational-expression > shift-expression
+ *   relational-expression <= shift-expression
+ *   relational-expression >= shift-expression
+ *   ;
+ *
+ * shift-expression:
+ *   additive-expression
+ *   shift-expression << additive-expression
+ *   shift-expression >> additive-expression
+ *
+ * additive-expression:
+ *   multiplicative-expression
+ *   additive-expression + multiplicative-expression
+ *   additive-expression - multiplicative-expression
+ *   ;
+ *
+ * multiplicative-expression:
+ *   cast-expression
+ *   multiplicative-expression * cast-expression
+ *   multiplicative-expression / cast-expression
+ *   multiplicative-expression % cast-expression
+ *   ;
+ */
+static struct tree *innerexpr(struct parser *parser, int level) {
+	struct token *token;
+	struct tree *left;
+	int t;
+
+	if (level >= sizeof(levels))
+		return castexpr(parser);
+	left = innerexpr(level + 1);
+	if (peek(parser, T_EOF))
+		return left;
+	for (;;) {
+		token = NULL;
+		for (t = &toklvls[level][0]; t != NULL; t++) {
+			if ((token = accept(*t)) != NULL)
+				break;
+		}
+		if (token == NULL || token->kind == T_EOF)
+			break;
+		left = mkastbinary(tokmap[token->kind], left, innerexpr(level + 1));
+	}
+	return left;
+}
+
+/*
+ * Parse a conditional expression.
+ *
+ * conditional-expression:
+ *   logical-or-expression
+ *   logical-or-expression ? expression : conditional-expression
+ *   ;
+ */
+static struct token *condexpr(struct parser *parser) {
+	struct tree *left, *truexpr;
+
+	left = innerexpr(0);
+	if (accept(T_QUESTIONMARK)) {
+		truexpr = expr(parser);
+		expect(T_COLON);
+		left = mkastnode(AST_COND, left, truexpr, condexpr(parser));
+	}
+	return left;
+}
+
+/*
  * Parse an assignment expression.
  *
  * assignment-expression:
  *   conditional-expression
  *   unary-expression assignment-operator assignment-expression
  */
-static struct token *assmtexpr(struct parser *parser) {
-	static int assignopers[] = {
-		T_MULASSIGN, T_DIVASSIGN, T_MODASSIGN, T_ADDASIGN, T_SUBASSIGN,
-		T_LSHIFTASSIGN, T_RSHIFTASSIGN, T_ANDASSIGN, T_ORASSIGN,
-		T_XORASSIGN,
-	};
+static struct token *assignexpr(struct parser *parser) {
+	struct token *token;
+	struct tree *left;
+	int t;
 
-
+	/*
+	 * TODO: This is the same code that is used in the `innerexpr`
+	 * subroutine, which is a code smell.
+	 */
+	left = unaryexpr(parser);
+	for (t = &assignopers[0]; t < &assignopers[sizeof(assignopers)]; t++) {
+		if ((token = accept(*t)) != NULL)
+			break;
+	}
+	if (token == NULL || token->kind == T_EOF)
+		return left;
+	return mkastbinary(tokmap[token->kind], left, assignexpr(parser));
 }
 
 /*

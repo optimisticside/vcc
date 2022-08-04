@@ -35,6 +35,9 @@ static struct tokenbind {
 	{ T_UNION, "union" },
 	{ T_VOLATILE, "volatile" },
 	{ T_WHILE, "while" },
+
+	/* operators */
+
 };
 
 /*
