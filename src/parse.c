@@ -69,6 +69,68 @@ static struct token *expect(struct parser *parser, int kind) {
 }
 
 /*
+ * Parse a unary expression.
+ *
+ * unary-expression:
+ *   postifix-expression
+ *   ++ unary-expression
+ *   -- unary-expression
+ *   unary-operator cast-expression
+ *   sizeof unary-expression
+ *   sizeof ( unary-expression )
+ *   alignof ( unary-expression )
+ *
+ * unary-operator:
+ *   &
+ *   *
+ *   +
+ *   -
+ *   ~
+ *   !
+ *   ++
+ *   --
+ */
+static struct tree *unaryexpr(struct parser *parser) {
+	struct tree *child;
+	bool hasparen;
+
+	if (accept(parser, T_SIZEOF)) {
+		hasparen = accept(parser, T_LPAREN) != NULL;
+		child = unaryexpr(parser);
+		if (hasparen)
+			expect(parser, T_RPAREN);
+		return mkastunary(AST_SIZEOF, child);
+	}
+
+	if (accept(parser, T_ALIGNOF)) {
+		expect(parser, T_LPAREN);
+		child = unaryexpr(parser);
+		expect(parser, T_RPAREN);
+		return mkastunary(AST_ALIGNOF, child);
+	}
+}
+
+/*
+ * Parse a type-cast expression.
+ *
+ * cast-expression:
+ *   unary-expression
+ *   ( type-name ) cast-expression
+ *   ;
+ */
+static struct token *castexpr(struct parser *parser) {
+	struct tree *right, *tn;
+
+	if (peek(parser) == T_LPAREN && startstn(parser, peekpeek(parser))) {
+		tn = typename(parser);
+	}
+	right = unaryexpr(parser);
+	if (tn != NULL)
+		right = mkastbinary(AST_CAST, right, tn);
+	return right;
+}
+
+/*
  * Internal routine to parse binary operators in expressions. Calls itself 
  * with a depth counter to measure precedence level.
  *
