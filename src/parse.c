@@ -64,7 +64,31 @@ static struct token *expect(struct parser *parser, int kind) {
 		 * be an EOF token when access the current token's kind (it can
 		 * still be NULL)
 		 */
-		fatalf("Expected %s, got %s", tokstr(kind), tokstr(token->kind));
+		fatalf(
+			"Expected %s, got %s",
+			tokstr(kind),
+			tokstr(token->kind)
+		);
+	return token;
+}
+
+/*
+ * Gets the next token in the parser's internal token-queue.
+ */
+static struct token *peek(struct parser *parser) {
+	return parser->token;
+}
+
+/*
+ * Gets the nth token in the parser's internal token-queue, and NULL if not
+ * existent.
+ */
+static struct token *peekn(struct parser *parser, int position) {
+	struct token *token;
+
+	token = parser->token;
+	while (--position && toke != NULL)
+		token = token->next;
 	return token;
 }
 
@@ -121,7 +145,7 @@ static struct tree *unaryexpr(struct parser *parser) {
 static struct token *castexpr(struct parser *parser) {
 	struct tree *right, *tn;
 
-	if (peek(parser) == T_LPAREN && startstn(parser, peekpeek(parser))) {
+	if (peek(parser) == T_LPAREN && startstn(parser, peekn(parser, 2))) {
 		tn = typename(parser);
 	}
 	right = unaryexpr(parser);
