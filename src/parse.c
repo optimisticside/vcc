@@ -486,7 +486,7 @@ static struct tree *stmtnolables(struct parser *parser) {
 		return ifstmt(parser);
 	case T_SWITCH:
 		return stwitchstmt(parser);
-	
+
 	/*
 	 * Jump statement.
 	 */
