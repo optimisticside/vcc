@@ -454,6 +454,25 @@ static struct tree *whilestmt(struct parser *parser) {
 }
 
 /*
+ * Parse a do-while statement.
+ *
+ * do-statement:
+ *   do statement while ( expression ) ;
+ */
+static struct tree *dostmt(struct parser *parser) {
+	struct tree *body, *cond;
+
+	expect(parser, T_DO);
+	body = stmt(parser);
+	expect(parser, T_WHILE);
+	expect(parser, T_LBRACE);
+	cond = expr(parser);
+	expect(parser, T_RBRACE);
+	expect(parser, T_SEMI);
+	return mkastbinary(AST_DO, body, cond);
+}
+
+/*
  * Parse a do statement.
  *
  * do-statement:
