@@ -93,6 +93,35 @@ static struct token *peekn(struct parser *parser, int position) {
 }
 
 /*
+ * Parse a postfix expression.
+ *
+ * postfix-expression:
+ *   primary-expression
+ *   postfix-expression [ expression ]
+ *   postfix-expression ( )
+ *   postfix-expression ( argument-expression-list )
+ *   postfix-expression . identifier
+ *   postfix-expression -> identifier
+ *   postfix-expression ++
+ *   postfix-expression --
+ *   ( type-name ) { initializer-list }
+ *   ( type-name ) { initializer-list , }
+ *
+ * argument-expression-list:
+ *   argument-expression
+ *   argument-expression-list , argument-expression
+ *
+ * primary-expression:
+ *   identifier
+ *   constant
+ *   string-literal
+ *   ( expression )
+ *   generic-selection
+ */
+static tree *postfixexpr(struct parser *parser) {
+}
+
+/*
  * Parse a unary expression.
  *
  * unary-expression:
@@ -115,8 +144,10 @@ static struct token *peekn(struct parser *parser, int position) {
  *   --
  */
 static struct tree *unaryexpr(struct parser *parser) {
+	struct token *token;
 	struct tree *child;
 	bool hasparen;
+	int *t;
 
 	if (accept(parser, T_SIZEOF)) {
 		hasparen = accept(parser, T_LPAREN) != NULL;
@@ -125,13 +156,19 @@ static struct tree *unaryexpr(struct parser *parser) {
 			expect(parser, T_RPAREN);
 		return mkastunary(AST_SIZEOF, child);
 	}
-
 	if (accept(parser, T_ALIGNOF)) {
 		expect(parser, T_LPAREN);
 		child = unaryexpr(parser);
 		expect(parser, T_RPAREN);
 		return mkastunary(AST_ALIGNOF, child);
 	}
+	for (t = &unaryopers[0]; t < &unaryopers[sizeof(unaryopers)]; t++) {
+		if ((token = accept(*t)) != NULL)
+			break;
+	}
+	if (token == NULL || token->kind == T_EOF)
+		return postfixexpr(parser);
+	return mkastunary(tokmap[token->kind], unaryexpr(parser));
 }
 
 /*
@@ -217,7 +254,7 @@ static struct token *castexpr(struct parser *parser) {
 static struct tree *innerexpr(struct parser *parser, int level) {
 	struct token *token;
 	struct tree *left;
-	int t;
+	int *t;
 
 	if (level >= sizeof(levels))
 		return castexpr(parser);
@@ -267,7 +304,7 @@ static struct token *condexpr(struct parser *parser) {
 static struct token *assignexpr(struct parser *parser) {
 	struct token *token;
 	struct tree *left;
-	int t;
+	int *t;
 
 	/*
 	 * TODO: This is the same code that is used in the `innerexpr`
@@ -327,7 +364,6 @@ static struct tree *directdeclarator(struct parser *parser) {
 	if (peek(parser, T_NAME)) {
 		
 	}
-
 	if (accept(parser, T_LPAREN)) {
 		struct declarator *inner = declarator(parser);
 		expect(parser, T_RPAREN);
@@ -370,10 +406,8 @@ static struct tree *declaration(struct parser *parser) {
 	if (accept(parser, T_STATICASSERT)) {
 		expect(parser, T_LPAREN);
 		toassert = constexpr(parser);
-
 		expect(parser, T_COMMA);
 		errmsg = expect(parser, T_STRING);
-
 		expect(parser, T_RPAREN);
 		expect(parser, T_SEMI);
 		return mkastbinary(AST_STATICASSERT, toassert, errmsg);
@@ -395,7 +429,6 @@ static struct tree *ifstmt(struct parser *parser) {
 	expect(parser, T_LPAREN);
 	cond = expr(parser);
 	expect(parser, T_RPAREN);
-
 	thenbody = stmt(parser);
 	if (accept(parser, T_ELSE))
 		elsebody = stmt(parser);
@@ -415,7 +448,6 @@ static struct tree *whilestmt(struct parser *parser) {
 	expect(parser, T_LPAREN);
 	cond = expr(parser);
 	expect(parser, T_RPAREN);
-
 	body = stmt(parser);
 	return mkastbinary(AST_WHILESTMT, cond, body);
 }
@@ -431,13 +463,11 @@ static struct tree *dostmt(struct parser *parser) {
 
 	expect(parser, T_DO);
 	body = stmt(parser);
-
 	expect(parser, T_WHILE);
 	expect(parser, T_LPAREN);
 	cond = expr(parser);
 	expect(parser, T_RPAREN);
 	expect(parser, T_SEMI);
-
 	return mkastbinary(AST_DOSTMT, cond, body);
 }
 
@@ -453,10 +483,8 @@ static struct tree *switchstmt(sturct parser *parser) {
 	expect(parser, T_SWITCH);
 	expect(parser, T_LPAREN);
 	value = expr(parser);
-
 	expect(parser, T_RPAREN);
 	body = stmt(parser);
-
 	return mkastbinary(AST_SWITCHSTMT, value, body);
 }
 
@@ -518,12 +546,10 @@ static struct tree *labeledstmt(struct parser *parser) {
 		expect(parser, T_COLON);
 		return mkastbinary(AST_CASE, caseval, stmt(parser));
 	}
-
 	if (accept(parser, T_DEFAULT)) {
 		expect(parser, T_COLON);
 		return mkastunary(AST_DEFAULTCASE, stmt(parser));
 	}
-
 	if ((label = accept(parser, T_NAME)) != NULL) {
 		expect(parser, T_COLON);
 		return mkastbinary(AST_LABEL, label, stmt(parser));
