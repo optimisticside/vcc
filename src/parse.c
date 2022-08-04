@@ -87,7 +87,7 @@ static struct token *peekn(struct parser *parser, int position) {
 	struct token *token;
 
 	token = parser->token;
-	while (--position && toke != NULL)
+	while (--position && token != NULL)
 		token = token->next;
 	return token;
 }
