@@ -60,9 +60,9 @@ static struct token *expect(struct parser *parser, int kind) {
 	token = parser->token;
 	if (token == NULL || token->kind != kind)
 		/*
-		 * TODO: Can we realy rely on the fact that the last token will
-		 * be an EOF token when access the current token's kind (it can
-		 * still be NULL)
+		 * TODO: Can we really rely on the fact that the last token
+		 * will be an EOF token when access the current token's kind
+		 * (it can still be NULL)
 		 */
 		fatalf(
 			"Expected %s, got %s",
@@ -119,6 +119,7 @@ static struct token *peekn(struct parser *parser, int position) {
  *   generic-selection
  */
 static tree *postfixexpr(struct parser *parser) {
+	
 }
 
 /*
