@@ -103,13 +103,11 @@ static void create(struct lexer *lexer, int token, long value) {
 	tok = malloc(sizeof(struct token));
 	tok->value = value;
 	tok->token = token;
-	
 	if (lexer->curr != NULL)
 		lexer->curr->next = tok;
 	lexer->curr = tok;
 	if (lexer->head == NULL)
 		lexer->head = tok;
-
 	return token;
 }
 
@@ -124,14 +122,12 @@ static void scanint(struct lexer *lexer) {
 		radix = 16;
 	else if (accept(lexer, "0"))
 		radix = 8;
-
 	while ((digit = charpos("0123456789abcdef", tolower(ch))) >= 0) {
 		if (digit >= radix)
 			fatalf("Invalid digit %c in integer literal", ch);
 		value = value * radix + digit;
 		ch = next(lexer);
 	}
-
 	putback(lexer);
 	create(lexer, T_INTLIT, value);
 }
@@ -218,7 +214,6 @@ static void scan(struct lexer *lexer) {
 		return scanstr(lexer);
 	if (ch == '\'')
 		return scanchar(lexer);
-
 	/*
 	 * Though this might be very inefficient, I prefer this over a messy
 	 * and extremely long switch statement with nested conditionals for
@@ -237,7 +232,6 @@ static void scan(struct lexer *lexer) {
 		if (accept(lexer, tb->string))
 			return create(lexer, tb->token);
 	}
-
 	fatalf("Invalid character %c", ch);
 }
 
