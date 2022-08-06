@@ -93,6 +93,26 @@ static struct token *peekn(struct parser *parser, int position) {
 }
 
 /*
+ * Parse a generic selection.
+ *
+ * general-selection:
+ *   generic ( assignment-expression , generic-association-list )
+ *
+ * generic-association-list:
+ *   generic-association
+ *   generic-association-list , general-association
+ *
+ * generic-association:
+ *   type-name : assignment-expression
+ *   default : assignment-expression
+ */
+static struct tree *gensel(struct parser *parser) {
+	struct tree *selector, assoclist;
+
+	expect(parser, T_GENERIC);
+}
+
+/*
  * Parse a postfix expression.
  *
  * postfix-expression:
@@ -119,7 +139,19 @@ static struct token *peekn(struct parser *parser, int position) {
  *   generic-selection
  */
 static tree *postfixexpr(struct parser *parser) {
-	
+	struct tree *genexpr, *assoclist;
+	struct tree *atom;
+
+	if ((atom = accept(parser, T_NAME)) != NULL) {
+		
+	}
+	if (accept(parser, T_GENERIC)) {
+		expect(parser, T_LPAREN);
+		genexpr = assignexpr(parser);
+		expect(parser, T_COMMA);
+		assoclist = genassoclist(parser);
+		return mkastbinary(AST_GENERICSEL, genexpr, assoclist);
+	}
 }
 
 /*
